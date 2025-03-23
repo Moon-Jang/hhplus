@@ -24,7 +24,9 @@ dependencyManagement {
 dependencies {
     implementation(libs.spring.boot.starter.web)
     compileOnly(libs.lombok)
+    testCompileOnly(libs.lombok)
     annotationProcessor(libs.lombok)
+    testAnnotationProcessor(libs.lombok)
     annotationProcessor(libs.spring.boot.configuration.processor)
     testImplementation(libs.spring.boot.starter.test)
 }
