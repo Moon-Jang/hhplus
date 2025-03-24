@@ -9,6 +9,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.BDDMockito.given;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -19,6 +20,24 @@ public class PointControllerTest {
     private MockMvc mockMvc;
     @MockBean
     private PointService pointService;
+
+    @DisplayName("포인트 조회 테스트")
+    @Test
+    public void point() throws Exception {
+        // given
+        UserPoint userPoint = new UserPointFixture().create();
+        given(pointService.getPoint(userPoint.id())).willReturn(userPoint);
+
+        // when & then
+        mockMvc.perform(
+                get("/point/{id}", userPoint.id())
+                    .contentType(MediaType.APPLICATION_JSON)
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(userPoint.id()))
+            .andExpect(jsonPath("$.point").value(userPoint.point()))
+            .andExpect(jsonPath("$.updateMillis").value(userPoint.updateMillis()));
+    }
 
     @DisplayName("포인트 충전 테스트")
     @Test

@@ -18,6 +18,7 @@ import java.util.HashMap;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -38,6 +39,57 @@ public class PointIntegrationTest {
         ReflectionTestUtils.setField(pointHistoryTable, "table", new ArrayList<>());
         ReflectionTestUtils.setField(pointHistoryTable, "cursor", 1);
     }
+
+    @Nested
+    @DisplayName("포인트 조회 테스트")
+    class GetPointTest {
+        @Test
+        void 포인트_조회_성공() throws Exception {
+            // given
+            UserPoint savedPoint = saveUserPoint();
+
+            // when & then
+            mockMvc.perform(get("/point/{id}", savedPoint.id()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(savedPoint.id()))
+                .andExpect(jsonPath("$.point").value(savedPoint.point()))
+                .andExpect(jsonPath("$.updateMillis").value(savedPoint.updateMillis()));
+        }
+
+        @Test
+        void 신규_사용자의_경우_0원으로_반환() throws Exception {
+            // given
+            long userId = 1L;
+
+            // when & then
+            mockMvc.perform(get("/point/{id}", userId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(userId))
+                .andExpect(jsonPath("$.point").value(0L))
+                .andExpect(jsonPath("$.updateMillis").isNumber());
+        }
+
+        @Test
+        void 포인트_충전후_조회시_충전_내용_반영되어_조회() throws Exception {
+            // given
+            UserPoint savedPoint = saveUserPoint();
+            long chargeAmount = 10000L;
+            long expectedAmount = savedPoint.point() + chargeAmount;
+
+            // when
+            mockMvc.perform(patch("/point/{id}/charge", savedPoint.id())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(Long.toString(chargeAmount)));
+
+            // then
+            mockMvc.perform(get("/point/{id}", savedPoint.id()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(savedPoint.id()))
+                .andExpect(jsonPath("$.point").value(expectedAmount))
+                .andExpect(jsonPath("$.updateMillis").isNumber());
+        }
+    }
+
     @Nested
     @DisplayName("포인트 충전 테스트")
     class ChargePointTest {

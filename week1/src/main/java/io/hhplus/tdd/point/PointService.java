@@ -14,6 +14,10 @@ public class PointService {
     private final PointHistoryTable pointHistoryTable;
     private final PointValidator pointValidator;
 
+    public UserPoint getPoint(long id) {
+        return userPointTable.selectById(id);
+    }
+
     public UserPoint charge(long id, long amount) {
         UserPoint userPoint = userPointTable.selectById(id);
 
