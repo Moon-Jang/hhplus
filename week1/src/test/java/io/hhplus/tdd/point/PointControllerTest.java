@@ -8,6 +8,8 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.List;
+
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -37,6 +39,27 @@ public class PointControllerTest {
             .andExpect(jsonPath("$.id").value(userPoint.id()))
             .andExpect(jsonPath("$.point").value(userPoint.point()))
             .andExpect(jsonPath("$.updateMillis").value(userPoint.updateMillis()));
+    }
+
+    @DisplayName("포인트 이력 조회 테스트")
+    @Test
+    public void getHistories() throws Exception {
+        // given
+        UserPoint userPoint = new UserPointFixture().create();
+        PointHistory pointHistory = new PointHistoryFixture().create();
+        given(pointService.getHistories(userPoint.id())).willReturn(List.of(pointHistory));
+
+        // when & then
+        mockMvc.perform(
+                get("/point/{id}/histories", userPoint.id())
+                    .contentType(MediaType.APPLICATION_JSON)
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].id").value(pointHistory.id()))
+            .andExpect(jsonPath("$[0].userId").value(pointHistory.userId()))
+            .andExpect(jsonPath("$[0].amount").value(pointHistory.amount()))
+            .andExpect(jsonPath("$[0].type").value(pointHistory.type().name()))
+            .andExpect(jsonPath("$[0].updateMillis").value(pointHistory.updateMillis()));
     }
 
     @DisplayName("포인트 충전 테스트")

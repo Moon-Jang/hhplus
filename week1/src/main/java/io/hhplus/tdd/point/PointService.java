@@ -6,6 +6,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 @Slf4j
 @RequiredArgsConstructor
@@ -16,6 +18,10 @@ public class PointService {
 
     public UserPoint getPoint(long id) {
         return userPointTable.selectById(id);
+    }
+
+    public List<PointHistory> getHistories(long id) {
+        return pointHistoryTable.selectAllByUserId(id);
     }
 
     public UserPoint charge(long id, long amount) {

@@ -91,6 +91,67 @@ public class PointIntegrationTest {
     }
 
     @Nested
+    @DisplayName("포인트 이력 조회 테스트")
+    class GetHistoriesTest {
+        @Test
+        void 포인트_이력_조회_성공() throws Exception {
+            // given
+            UserPoint savedPoint = saveUserPoint();
+
+            // when then
+            mockMvc.perform(get("/point/{id}/histories", savedPoint.id()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").isNumber())
+                .andExpect(jsonPath("$[0].userId").value(savedPoint.id()))
+                .andExpect(jsonPath("$[0].amount").value(savedPoint.point()))
+                .andExpect(jsonPath("$[0].type").value(TransactionType.CHARGE.name()))
+                .andExpect(jsonPath("$[0].updateMillis").value(savedPoint.updateMillis()));
+        }
+
+        @Test
+        void 신규_사용자의_경우_이력_없음() throws Exception {
+            // given
+            long userId = 1L;
+
+            // when then
+            mockMvc.perform(get("/point/{id}/histories", userId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+        }
+
+        @Test
+        void 포인트_충전_and_사용후_조회시_충전_and_사용_이력_확인_가능() throws Exception {
+            // given
+            UserPoint savedPoint = saveUserPoint();
+            long chargeAmount = 10000L;
+            long useAmount = 3000L;
+
+            // when
+            mockMvc.perform(patch("/point/{id}/charge", savedPoint.id())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(Long.toString(chargeAmount)));
+
+            mockMvc.perform(patch("/point/{id}/use", savedPoint.id())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(Long.toString(useAmount)));
+
+            // then
+            mockMvc.perform(get("/point/{id}/histories", savedPoint.id()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[1].id").isNumber())
+                .andExpect(jsonPath("$[1].userId").value(savedPoint.id()))
+                .andExpect(jsonPath("$[1].amount").value(chargeAmount))
+                .andExpect(jsonPath("$[1].type").value(TransactionType.CHARGE.name()))
+                .andExpect(jsonPath("$[1].updateMillis").isNumber())
+                .andExpect(jsonPath("$[2].id").isNumber())
+                .andExpect(jsonPath("$[2].userId").value(savedPoint.id()))
+                .andExpect(jsonPath("$[2].amount").value(useAmount))
+                .andExpect(jsonPath("$[2].type").value(TransactionType.USE.name()))
+                .andExpect(jsonPath("$[2].updateMillis").isNumber());
+        }
+    }
+
+    @Nested
     @DisplayName("포인트 충전 테스트")
     class ChargePointTest {
         @Test
@@ -199,7 +260,9 @@ public class PointIntegrationTest {
     }
 
     private UserPoint saveUserPoint() {
-        return userPointTable.insertOrUpdate(1L, 100L);
+        var saved = userPointTable.insertOrUpdate(1L, 100L);
+        pointHistoryTable.insert(saved.id(), saved.point(), TransactionType.CHARGE, saved.updateMillis());
+        return saved;
     }
 
     private UserPoint saveUserPoint(UserPoint userPoint) {
