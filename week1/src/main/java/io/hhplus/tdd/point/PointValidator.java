@@ -34,4 +34,18 @@ public class PointValidator {
             throw new IllegalArgumentException(errorMessage);
         }
     }
+
+    public void validateUse(UserPoint userPoint, long amount) {
+        if (amount < 1) {
+            String errorMessage = "사용 포인트는 1 보다 작을 수 없습니다. 사용하시려는 포인트: %d"
+                .formatted(amount);
+            throw new IllegalArgumentException(errorMessage);
+        }
+
+        if (userPoint.point() < amount) {
+            String errorMessage = "포인트가 부족합니다. 현재 포인트: %d, 사용하려는 포인트: %d"
+                .formatted(userPoint.point(), amount);
+            throw new IllegalArgumentException(errorMessage);
+        }
+    }
 }

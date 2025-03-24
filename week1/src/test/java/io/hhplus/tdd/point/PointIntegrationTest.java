@@ -155,4 +155,127 @@ public class PointIntegrationTest {
         pointHistoryTable.insert(saved.id(), userPoint.point(), TransactionType.CHARGE, saved.updateMillis());
         return saved;
     }
+
+    @Nested
+    @DisplayName("포인트 사용 테스트")
+    class UsePointTest {
+        @Test
+        void 포인트_사용_성공() throws Exception {
+            // given
+            UserPoint userPoint = new UserPointFixture().setPoint(10000L).create();
+            UserPoint savedPoint = userPointTable.insertOrUpdate(userPoint.id(), userPoint.point());
+            long useAmount = 3000L;
+            long expectedAmount = savedPoint.point() - useAmount;
+
+            // when
+            mockMvc.perform(patch("/point/{id}/use", savedPoint.id())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(Long.toString(useAmount)));
+
+            //then
+            UserPoint result = userPointTable.selectById(savedPoint.id());
+            assertThat(result.id()).isEqualTo(savedPoint.id());
+            assertThat(result.point()).isEqualTo(expectedAmount);
+
+            List<PointHistory> resultHistories = pointHistoryTable.selectAllByUserId(savedPoint.id());
+            PointHistory latestHistory = resultHistories.get(resultHistories.size() - 1);
+            assertThat(latestHistory.userId()).isEqualTo(savedPoint.id());
+            assertThat(latestHistory.amount()).isEqualTo(useAmount);
+            assertThat(latestHistory.type()).isEqualTo(TransactionType.USE);
+            assertThat(latestHistory.updateMillis()).isEqualTo(result.updateMillis());
+        }
+
+        @Test
+        void 포인트_여러번_사용_케이스() throws Exception {
+            // given
+            UserPoint userPoint = new UserPointFixture().setPoint(10000L).create();
+            UserPoint savedPoint = userPointTable.insertOrUpdate(userPoint.id(), userPoint.point());
+            List<Long> useAmounts = List.of(1000L, 500L);
+            long expectedAmount = savedPoint.point() - useAmounts.stream().reduce(0L, Long::sum);
+
+            // when
+            mockMvc.perform(patch("/point/{id}/use", savedPoint.id())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(String.valueOf(useAmounts.get(0))));
+
+            mockMvc.perform(patch("/point/{id}/use", savedPoint.id())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(String.valueOf(useAmounts.get(1))));
+
+            //then
+            UserPoint resultPoint = userPointTable.selectById(savedPoint.id());
+            assertThat(resultPoint.id()).isEqualTo(savedPoint.id());
+            assertThat(resultPoint.point()).isEqualTo(expectedAmount);
+
+            List<PointHistory> pointHistories = pointHistoryTable.selectAllByUserId(savedPoint.id());
+            List<PointHistory> latestHistories = pointHistories.subList(pointHistories.size() - 2, pointHistories.size());
+            assertThat(latestHistories.get(0).userId()).isEqualTo(savedPoint.id());
+            assertThat(latestHistories.get(0).amount()).isEqualTo(useAmounts.get(0));
+            assertThat(latestHistories.get(0).type()).isEqualTo(TransactionType.USE);
+            assertThat(latestHistories.get(1).userId()).isEqualTo(savedPoint.id());
+            assertThat(latestHistories.get(1).amount()).isEqualTo(useAmounts.get(1));
+            assertThat(latestHistories.get(1).type()).isEqualTo(TransactionType.USE);
+            assertThat(latestHistories.get(1).updateMillis()).isEqualTo(resultPoint.updateMillis());
+        }
+
+        @Test
+        void 포인트_부족시_사용_실패() throws Exception {
+            // given
+            long initialPoint = 1000L;
+            UserPoint userPoint = new UserPointFixture().setPoint(initialPoint).create();
+            UserPoint savedPoint = userPointTable.insertOrUpdate(userPoint.id(), userPoint.point());
+            long useAmount = 2000L; // 보유 포인트보다 큰 금액
+
+            // when & then
+            mockMvc.perform(
+                    patch("/point/{id}/use", savedPoint.id())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(Long.toString(useAmount))
+                )
+                .andExpect(status().isBadRequest());
+
+            // 포인트와 이력이 변경되지 않았는지 확인
+            UserPoint resultPoint = userPointTable.selectById(savedPoint.id());
+            assertThat(resultPoint.point()).isEqualTo(initialPoint);
+            List<PointHistory> resultHistories = pointHistoryTable.selectAllByUserId(savedPoint.id());
+            assertThat(resultHistories).isEmpty();
+        }
+
+        @Test
+        void 사용_포인트가_1보다_작을_경우_실패() throws Exception {
+            // given
+            UserPoint savedPoint = saveUserPoint();
+            long amount = 0L;
+            String expectedMessage = "사용 포인트는 1 보다 작을 수 없습니다. 사용하시려는 포인트: %d"
+                .formatted(amount);
+
+            // when then
+            mockMvc.perform(patch("/point/{id}/use", savedPoint.id())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(String.valueOf(amount)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(expectedMessage));
+            UserPoint current = userPointTable.selectById(savedPoint.id());
+            assertThat(current.point()).isEqualTo(savedPoint.point());
+        }
+
+        @Test
+        void 잔고가_부족할_경우_실패() throws Exception {
+            // given
+            UserPoint userPoint = new UserPointFixture().setPoint(10000L).create();
+            UserPoint savedPoint = userPointTable.insertOrUpdate(userPoint.id(), userPoint.point());
+            long amount = savedPoint.point() + 100L;
+            String expectedMessage = "포인트가 부족합니다. 현재 포인트: %d, 사용하려는 포인트: %d"
+                .formatted(userPoint.point(), amount);
+
+            // when then
+            mockMvc.perform(patch("/point/{id}/use", savedPoint.id())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(String.valueOf(amount)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(expectedMessage));
+            UserPoint current = userPointTable.selectById(savedPoint.id());
+            assertThat(current.point()).isEqualTo(savedPoint.point());
+        }
+    }
 }

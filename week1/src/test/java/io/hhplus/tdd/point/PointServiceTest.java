@@ -53,4 +53,32 @@ class PointServiceTest {
             verify(pointHistoryTable).insert(savedUserPoint.id(), amount, TransactionType.CHARGE, savedUserPoint.updateMillis());
         }
     }
+
+    @DisplayName("사용 기능 테스트")
+    @Nested
+    class useTest {
+        @Test
+        void 성공() {
+            // given
+            long amount = 100L;
+            UserPoint userPoint = new UserPointFixture().create();
+            UserPoint savedUserPoint = new UserPointFixture()
+                .setPoint(userPoint.point() - amount)
+                .create();
+
+            given(userPointTable.selectById(userPoint.id()))
+                .willReturn(userPoint);
+            given(userPointTable.insertOrUpdate(userPoint.id(), userPoint.point() - amount))
+                .willReturn(savedUserPoint);
+
+            // when
+            Throwable throwable = catchThrowable(() -> pointService.use(userPoint.id(), amount));
+
+            // then
+            assertThat(throwable).isNull();
+            verify(pointValidator).validateUse(userPoint, amount);
+            verify(userPointTable).insertOrUpdate(userPoint.id(), userPoint.point() - amount);
+            verify(pointHistoryTable).insert(savedUserPoint.id(), savedUserPoint.point(), TransactionType.USE, savedUserPoint.updateMillis());
+        }
+    }
 }

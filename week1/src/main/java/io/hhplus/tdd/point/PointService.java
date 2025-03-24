@@ -23,4 +23,14 @@ public class PointService {
 
         return savedPoint;
     }
+
+    public UserPoint use(long id, long amount) {
+        UserPoint userPoint = userPointTable.selectById(id);
+
+        pointValidator.validateUse(userPoint, amount);
+        UserPoint saved = userPointTable.insertOrUpdate(userPoint.id(), userPoint.point() - amount);
+        pointHistoryTable.insert(id, amount, TransactionType.USE, saved.updateMillis());
+
+        return saved;
+    }
 }

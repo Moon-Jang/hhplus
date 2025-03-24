@@ -1,6 +1,7 @@
 package io.hhplus.tdd.point;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -16,6 +17,7 @@ class PointValidatorTest {
         pointValidator = new PointValidator();
     }
 
+    @DisplayName("포인트 충전 검증 테스트")
     @Nested
     class validateChargeTest {
         @Test
@@ -97,6 +99,59 @@ class PointValidatorTest {
 
             // when
             Throwable throwable = catchThrowable(() -> pointValidator.validateCharge(userPoint, amount));
+
+            // then
+            assertThat(throwable).isInstanceOf(IllegalArgumentException.class)
+                .hasMessage(expectedMessage);
+        }
+    }
+
+    @DisplayName("포인트 사용 검증 테스트")
+    @Nested
+    class validateUseTest {
+        @Test
+        void 성공() {
+            // given
+            UserPoint userPoint = new UserPointFixture()
+                .setPoint(100L)
+                .create();
+            long amount = 50L;
+
+            // when
+            Throwable throwable = catchThrowable(() -> pointValidator.validateUse(userPoint, amount));
+
+            // then
+            assertThat(throwable).isNull();
+        }
+
+        @Test
+        void 사용_포인트가_1보다_작을_경우_실패() {
+            // given
+            UserPoint userPoint = new UserPointFixture().create();
+            long amount = 0L;
+            String expectedMessage = "사용 포인트는 1 보다 작을 수 없습니다. 사용하시려는 포인트: %d"
+                .formatted(amount);
+
+            // when
+            Throwable throwable = catchThrowable(() -> pointValidator.validateUse(userPoint, amount));
+
+            // then
+            assertThat(throwable).isInstanceOf(IllegalArgumentException.class)
+                .hasMessage(expectedMessage);
+        }
+
+        @Test
+        void 잔고가_부족할_경우_실패() {
+            // given
+            UserPoint userPoint = new UserPointFixture()
+                .setPoint(100L)
+                .create();
+            long amount = 200L;
+            String expectedMessage = "포인트가 부족합니다. 현재 포인트: %d, 사용하려는 포인트: %d"
+                .formatted(userPoint.point(), amount);
+
+            // when
+            Throwable throwable = catchThrowable(() -> pointValidator.validateUse(userPoint, amount));
 
             // then
             assertThat(throwable).isInstanceOf(IllegalArgumentException.class)

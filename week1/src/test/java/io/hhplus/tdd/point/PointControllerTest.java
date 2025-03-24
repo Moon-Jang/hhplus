@@ -1,5 +1,6 @@
 package io.hhplus.tdd.point;
 
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -19,6 +20,7 @@ public class PointControllerTest {
     @MockBean
     private PointService pointService;
 
+    @DisplayName("포인트 충전 테스트")
     @Test
     public void charge() throws Exception {
         // given
@@ -29,6 +31,26 @@ public class PointControllerTest {
         // when & then
         mockMvc.perform(
                 patch("/point/{id}/charge", userPoint.id())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(String.valueOf(amount))
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(userPoint.id()))
+            .andExpect(jsonPath("$.point").value(userPoint.point()))
+            .andExpect(jsonPath("$.updateMillis").value(userPoint.updateMillis()));
+    }
+
+    @DisplayName("포인트 사용 테스트")
+    @Test
+    public void use() throws Exception {
+        // given
+        UserPoint userPoint = new UserPointFixture().create();
+        long amount = 100L;
+        given(pointService.use(userPoint.id(), amount)).willReturn(userPoint);
+
+        // when & then
+        mockMvc.perform(
+                patch("/point/{id}/use", userPoint.id())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(String.valueOf(amount))
             )
