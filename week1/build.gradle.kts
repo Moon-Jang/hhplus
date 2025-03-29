@@ -23,6 +23,7 @@ dependencyManagement {
 
 dependencies {
     implementation(libs.spring.boot.starter.web)
+    implementation(libs.spring.boot.starter.aop)
     compileOnly(libs.lombok)
     testCompileOnly(libs.lombok)
     annotationProcessor(libs.lombok)
